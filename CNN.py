@@ -1,3 +1,4 @@
+import sys 
 import torch  # Main Package
 import torchvision  # Package for Vision Related ML
 import torchvision.transforms as transforms  # Subpackage that contains image transforms
@@ -5,22 +6,24 @@ import torch.nn as nn  # Layers
 import torch.nn.functional as F # Activation Functions
 import torch.optim as optim # Optimizers
 
-# Create the transform sequence
-transform = transforms.Compose([
-    transforms.ToTensor(),  # Convert to Tensor
-    # Normalize Image to [-1, 1] first number is mean, second is std deviation
-    transforms.Normalize((0.5,), (0.5,)) 
-])
 
-# Load MNIST dataset
-# Train
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True,download=True, transform=transform)
-testset = torchvision.datasets.CIFAR10(root='./data', train=False,download=True, transform=transform)
+def dataset():
+    # Create the transform sequence
+    transform = transforms.Compose([
+        transforms.ToTensor(),  # Convert to Tensor
+        # Normalize Image to [-1, 1] first number is mean, second is std deviation
+        transforms.Normalize((0.5,), (0.5,)) 
+    ])
 
-batch_size = 16
+    # Load MNIST dataset
+    # Train
+    trainset = torchvision.datasets.CIFAR10(root='./data', train=True,download=True, transform=transform)
+    testset = torchvision.datasets.CIFAR10(root='./data', train=False,download=True, transform=transform)
 
-train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,shuffle=True)
-test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+    batch_size = 12
+    global train_loader,test_loader
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,shuffle=True)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
 
 
 # Define the CNN architecture
@@ -53,16 +56,18 @@ class CNN(nn.Module):
       x = F.relu(self.fc2_bn(x))  # Shape (B, 256)
       x = self.fc3(x)  # Shape: (B, 10)
       return x  
+    
+def model_setup():
+    # Identify device
+    global device
+    device = ("cuda" if torch.cuda.is_available()
+        else "mps" if torch.backends.mps.is_available()
+        else "cpu"
+    )
+    print(f"Using {device} device")
 
-# Identify device
-device = ("cuda" if torch.cuda.is_available()
-    else "mps" if torch.backends.mps.is_available()
-    else "cpu"
-)
-print(f"Using {device} device")
-
-cnn = CNN().to(device)
-
+    global cnn
+    cnn = CNN().to(device)
 
 # Define the training and testing functions
 def train(net, train_loader, criterion, optimizer, device):
@@ -93,19 +98,50 @@ def test(net, test_loader, device):
             correct += (predicted == labels).sum().item()  # How many are correct?
     return correct / total
 
-    
-cnn = CNN().to(device)
+def epochtraining():
+    LEARNING_RATE = 1e-1
+    MOMENTUM = 0.5
+    global test_acc
+    # Define the loss function, optimizer, and learning rate scheduler
+    criterion = nn.CrossEntropyLoss() # Use this if not using softmax layer
+    optimizer = optim.SGD(cnn.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM)
+    lr_decay = optim.lr_scheduler.StepLR(optimizer, 5 , 0.1)
 
-LEARNING_RATE = 1e-1
-MOMENTUM = 0.6
+    # Train the CNN for 10 epochs
+    for epoch in range(10):
+        train_loss = train(cnn, train_loader, criterion, optimizer, device)
+        test_acc = test(cnn, test_loader, device)
+        lr_decay.step()
+        print(f"Epoch {epoch+1}: Train loss = {train_loss:.4f}, Test accuracy = {test_acc:.4f}")
 
-# Define the loss function, optimizer, and learning rate scheduler
-criterion = nn.CrossEntropyLoss() # Use this if not using softmax layer
-optimizer = optim.SGD(cnn.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM)
-lr_decay = optim.lr_scheduler.StepLR(optimizer, 5 , 0.1)
-# Train the MLP for 5 epochs
-for epoch in range(10):
-    train_loss = train(cnn, train_loader, criterion, optimizer, device)
-    test_acc = test(cnn, test_loader, device)
-    lr_decay.step()
-    print(f"Epoch {epoch+1}: Train loss = {train_loss:.4f}, Test accuracy = {test_acc:.4f}")
+def savep():
+    print("saving model...")
+    torch.save(cnn.state_dict(), "savedmodel.pt")
+    print("Done!")
+
+def loadp():
+    print("Loading params...")
+    cnn = CNN()
+    cnn.load_state_dict(torch.load("savedmodel.pt"))
+    cnn.eval()
+    print("Done!")
+    #test_acc = test_acc*100
+    print(f"Test accuracy = {test_acc*100:.4f}%")
+
+def main():
+    dataset()
+    model_setup()
+    epochtraining()
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        mystring = sys.argv[1]
+        save = "-save"
+        load = "-load"
+        if mystring == save:
+            main()
+            savep()
+        else:
+            loadp()
+    else:
+        main()
