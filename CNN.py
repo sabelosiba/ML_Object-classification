@@ -17,7 +17,7 @@ transform = transforms.Compose([
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,download=True, transform=transform)
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,download=True, transform=transform)
 
-batch_size = 12
+batch_size = 16
 
 train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,shuffle=True)
 test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
@@ -97,7 +97,7 @@ def test(net, test_loader, device):
 cnn = CNN().to(device)
 
 LEARNING_RATE = 1e-1
-MOMENTUM = 0.9
+MOMENTUM = 0.6
 
 # Define the loss function, optimizer, and learning rate scheduler
 criterion = nn.CrossEntropyLoss() # Use this if not using softmax layer
