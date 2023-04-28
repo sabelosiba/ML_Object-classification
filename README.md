@@ -11,13 +11,17 @@ Machine Learning - Designing nueral networks to successfully classify objects of
 
 By using a makefile to run following commands
 
-To delete venv folder 
+To delete venv folder and data
 ```bash
 make clean
 ```
 To setup a python virtual environment.
 ```bash
 make
+```
+To activate python virtual environment.
+```bash
+source venv/bin/activate
 ```
 To execute project using make file argumented execution for Multi-Layer perceptron
 ```bash

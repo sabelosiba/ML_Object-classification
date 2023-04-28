@@ -143,6 +143,7 @@ def main(b):
     epochtraining(b)
 
 if __name__ == "__main__":
+    b = False
     if len(sys.argv) > 1:
         mystring = sys.argv[1]
         save = "-save"
@@ -153,4 +154,4 @@ if __name__ == "__main__":
         else:
             loadp()
     else:
-        main()
+        main(b)

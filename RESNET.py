@@ -26,60 +26,30 @@ def dataset():
 
 
 # Define the RESNET architecture
-class BasicBlock(nn.Module):
-    expansion = 1
+"""
+Define an nn.Module class for a simple residual block with equal dimensions
+"""
+class ResBlock(nn.Module):
 
-    def __init__(self, in_planes, planes, stride=1):
-        super(BasicBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
+    """
+    Iniialize a residual block with two convolutions followed by batchnorm layers
+    """
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 16, 3, padding=1)
+        self.conv2 = nn.Conv2d(16, 64, 3, padding=1)
+        self.batchnorm1 = nn.BatchNorm2d(16)
+        self.batchnorm2 = nn.BatchNorm2d(64)
 
-        self.shortcut = nn.Sequential()
-        if stride != 1 or in_planes != self.expansion*planes:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(in_planes, self.expansion*planes, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(self.expansion*planes)
-            )
-
-    def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
-        out += self.shortcut(x)
-        out = F.relu(out)
-        return out
-    
-class ResidualBlock(nn.Module):
-     def __init__(self, block):
-        super(ResidualBlock, self).__init__()
-        self.in_planes = 64
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.layer1 = self._make_layer(block, 64, 2, stride=1)
-        self.layer2 = self._make_layer(block, 128, 2, stride=2)
-        self.layer3 = self._make_layer(block, 256, 2, stride=2)
-        self.layer4 = self._make_layer(block, 512, 2, stride=2)
-        self.linear = nn.Linear(512* block.expansion, 10)
-
-     def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1]*(num_blocks-1)
-        layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes * block.expansion
-        return nn.Sequential(*layers)
-
-     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = self.layer4(out)
-        out = F.avg_pool2d(out, 4)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        return out
+    def convblock(self, x):
+        x = F.relu(self.batchnorm1(self.conv1(x)))
+        x = F.relu(self.batchnorm2(self.conv2(x)))
+        return x
+   
+    """
+    Combine output with the original input
+    """
+    def forward(self, x): return x + self.convblock(x) # skip connection
 
 def model_setup():
     # Identify device
@@ -90,7 +60,8 @@ def model_setup():
     )
     print(f"Using {device} device")
 
-    resnet = ResidualBlock(BasicBlock).to(device)
+    #resnet = ResidualBlock(BasicBlock).to(device)
+    resnet = torchvision.models.resnet34(pretrained=True)
 
 # Define the training and testing functions
 def train(net, train_loader, criterion, optimizer, device):
@@ -122,7 +93,7 @@ def test(net, test_loader, device):
     return correct / total
 
 
-def epoch_resnet():
+def epoch_resnet(flag):
     LEARNING_RATE = 1e-1
     MOMENTUM = 0.9
 
@@ -130,42 +101,52 @@ def epoch_resnet():
     criterion = nn.CrossEntropyLoss() # Use this if not using softmax layer
     optimizer = optim.SGD(resnet.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM)
     lr_decay = optim.lr_scheduler.StepLR(optimizer, 5 , 0.1)
+    global max 
+    max=0
     # Train the MLP for 10 epochs
     for epoch in range(10):
         train_loss = train(resnet, train_loader, criterion, optimizer, device)
         test_acc = test(resnet, test_loader, device)
         lr_decay.step()
         print(f"Epoch {epoch+1}: Train loss = {train_loss:.4f}, Test accuracy = {test_acc:.4f}")
+        if test_acc > max:
+            max = test_acc
+    if flag == True:
+            savep(max)
 
-def savep():
+def savep(maxx):
     print("saving model...")
-    torch.save(resnet.state_dict(), "RESNETsavedmodel.pt")
+    mymax = maxx*100
+    torch.save({'Testing accuracy': mymax,
+                'model_state_dict': resnet.state_dict(),
+                }, "RESNETsavedmodel.pt")
     print("Done!")
 
 def loadp():
     print("Loading params...")
-    model = ResidualBlock()
-    model.load_state_dict(torch.load("RESNETsavedmodel.pt"))
-    model.eval()
+    model = ResBlock()
+    check = torch.load("RESNETsavedmodel.pt")
+    model.load_state_dict(check['model_state_dict'])
+    mymax = check['Testing accuracy']
     print("Done!")
-    #test_acc = test_acc*100
-    #print(f"Test accuracy = {test_acc*100:.4f}%")
+    print(f"Test accuracy = {mymax:.2f}%")
 
-def main():
+def main(b):
     dataset()
     model_setup()
     #epochtraining()
-    epoch_resnet()
+    epoch_resnet(b)
 
 if __name__ == "__main__":
+    b = False
     if len(sys.argv) > 1:
         mystring = sys.argv[1]
         save = "-save"
         load = "-load"
         if mystring == save:
-            main()
-            savep()
+            b = True
+            main(b)
         else:
             loadp()
     else:
-        main()
+        main(b)

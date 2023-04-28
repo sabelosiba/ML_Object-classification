@@ -5,9 +5,11 @@ install: venv
 
 venv :
 	test -d venv || python3 -m venv venv
+	virtualenv -p python3 venv
 
 clean:
 	rm -rf venv
+	rm -rf data
 	find -iname "*.pyc" -delete
 
 runMLP:
