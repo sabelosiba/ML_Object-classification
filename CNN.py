@@ -15,7 +15,7 @@ def dataset():
         transforms.Normalize((0.5,), (0.5,)) 
     ])
 
-    # Load MNIST dataset
+    # Load CIFAR10 dataset
     # Train
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True,download=True, transform=transform)
     testset = torchvision.datasets.CIFAR10(root='./data', train=False,download=True, transform=transform)
@@ -98,7 +98,7 @@ def test(net, test_loader, device):
             correct += (predicted == labels).sum().item()  # How many are correct?
     return correct / total
 
-def epochtraining():
+def epochtraining(flag):
     LEARNING_RATE = 1e-1
     MOMENTUM = 0.5
     global test_acc
@@ -106,32 +106,41 @@ def epochtraining():
     criterion = nn.CrossEntropyLoss() # Use this if not using softmax layer
     optimizer = optim.SGD(cnn.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM)
     lr_decay = optim.lr_scheduler.StepLR(optimizer, 5 , 0.1)
-
+    global max 
+    max=0
     # Train the CNN for 10 epochs
     for epoch in range(10):
         train_loss = train(cnn, train_loader, criterion, optimizer, device)
         test_acc = test(cnn, test_loader, device)
         lr_decay.step()
         print(f"Epoch {epoch+1}: Train loss = {train_loss:.4f}, Test accuracy = {test_acc:.4f}")
+        if test_acc > max:
+            max = test_acc
+    if flag == True:
+            savep(max)
 
-def savep():
+def savep(maxx):
     print("saving model...")
-    torch.save(cnn.state_dict(), "savedmodel.pt")
+    mymax = maxx*100
+    torch.save({'Testing accuracy': mymax,
+                'model_state_dict': cnn.state_dict(),
+                }, "CNNsavedmodel.pt")
     print("Done!")
 
 def loadp():
     print("Loading params...")
-    cnn = CNN()
-    cnn.load_state_dict(torch.load("savedmodel.pt"))
-    cnn.eval()
+    model = CNN()
+    check = torch.load("CNNsavedmodel.pt")
+    model.load_state_dict(check['model_state_dict'])
+    mymax = check['Testing accuracy']
+    model.eval()
     print("Done!")
-    #test_acc = test_acc*100
-    print(f"Test accuracy = {test_acc*100:.4f}%")
+    print(f"Test accuracy = {mymax:.2f}%")
 
-def main():
+def main(b):
     dataset()
     model_setup()
-    epochtraining()
+    epochtraining(b)
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -139,8 +148,8 @@ if __name__ == "__main__":
         save = "-save"
         load = "-load"
         if mystring == save:
-            main()
-            savep()
+            b = True
+            main(b)
         else:
             loadp()
     else:

@@ -98,7 +98,7 @@ def test(net, test_loader, device):
             correct += (predicted == labels).sum().item()  # How many are correct?
     return correct / total
 
-def epochtraining():
+def epochtraining(flag):
     LEARNING_RATE = 1e-2
     MOMENTUM = 0.99
 
@@ -106,32 +106,41 @@ def epochtraining():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(mlp.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM) # when you updating the weights
     lr_decay = optim.lr_scheduler.StepLR(optimizer, 10 , 0.1)
-
+    global max 
+    max=0
     # Train the MLP for 15 epochs
     for epoch in range(15):
         train_loss = train(mlp, train_loader, criterion, optimizer, device)
         test_acc = test(mlp, test_loader, device)
         lr_decay.step()
         print(f"Epoch {epoch+1}: Train loss = {train_loss:.4f}, Test accuracy = {test_acc:.4f}")
+        if test_acc > max:
+            max = test_acc
+    if flag == True:
+            savep(max)
 
-def savep():
+def savep(maxx):
     print("saving model...")
-    torch.save(mlp.state_dict(), "MLPsavedmodel.pt")
+    mymax = maxx*100
+    torch.save({'Testing accuracy': mymax,
+                'model_state_dict': mlp.state_dict(),
+                }, "MLPsavedmodel.pt")
     print("Done!")
 
 def loadp():
     print("Loading params...")
     model = MLP()
-    model.load_state_dict(torch.load("MLPsavedmodel.pt"))
+    check = torch.load("MLPsavedmodel.pt")
+    model.load_state_dict(check['model_state_dict'])
+    mymax = check['Testing accuracy']
     model.eval()
     print("Done!")
-    #test_acc = test_acc*100
-    #print(f"Test accuracy = {test_acc*100:.2f}%")
+    print(f"Test accuracy = {mymax:.2f}%")
 
-def main():
+def main(b):
     dataset()
     model_setup()
-    epochtraining()
+    epochtraining(b)
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -139,8 +148,8 @@ if __name__ == "__main__":
         save = "-save"
         load = "-load"
         if mystring == save:
-            main()
-            savep()
+            b = True
+            main(b)
         else:
             loadp()
     else:
