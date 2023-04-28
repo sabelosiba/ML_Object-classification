@@ -14,7 +14,7 @@ def dataset():
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True,download=True, transform=transform)
     testset = torchvision.datasets.CIFAR10(root='./data', train=False,download=True, transform=transform)
 
-    batch_size = 128
+    batch_size = 256
     global train_loader,test_loader
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,shuffle=True)
     test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
@@ -30,21 +30,15 @@ class MLP(nn.Module):
         self.fc1_bn = nn.BatchNorm1d(1536)
         self.drop1 = nn.Dropout(p=0.2)
 
-
         self.fc2 = nn.Linear(1536, 768)  # First HL
         self.fc2_bn = nn.BatchNorm1d(768)
         self.drop2 = nn.Dropout(p=0.2)
-
 
         self.fc3 = nn.Linear(768, 384) # second HL
         self.fc3_bn = nn.BatchNorm1d(384)
         self.drop3 = nn.Dropout(p=0.2)
 
-        self.fc4 = nn.Linear(384, 192) # third HL
-        self.fc4_bn = nn.BatchNorm1d(192)
-        self.drop4 = nn.Dropout(p=0.1)
-
-        self.fc7 = nn.Linear(192, 10) # fourth HL
+        self.fc7 = nn.Linear(384, 10) # fourth HL
 
     def forward(self, x):
       # Batch x of shape (B, C, W, H) #batch size , colour channel and width and Height
@@ -58,9 +52,6 @@ class MLP(nn.Module):
       x = self.fc3(x)
       x = F.relu(self.fc3_bn(x))  # 3rd Hidden Layer
       x = self.drop3(x)
-      x = self.fc4(x)
-      x = F.relu(self.fc4_bn(x))  # 4th Hidden Layer
-      x = self.drop4(x)
       x = self.fc7(x)  # Output Layer
       return x  # Has shape (B, 10)
     
@@ -108,8 +99,8 @@ def test(net, test_loader, device):
     return correct / total
 
 def epochtraining():
-    LEARNING_RATE = 1e-1
-    MOMENTUM = 0.9
+    LEARNING_RATE = 1e-2
+    MOMENTUM = 0.99
 
     # Define the loss function, optimizer, and learning rate scheduler
     criterion = nn.CrossEntropyLoss()
@@ -135,7 +126,7 @@ def loadp():
     model.eval()
     print("Done!")
     #test_acc = test_acc*100
-    #print(f"Test accuracy = {test_acc*100:.4f}%")
+    #print(f"Test accuracy = {test_acc*100:.2f}%")
 
 def main():
     dataset()
